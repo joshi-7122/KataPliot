@@ -30,7 +30,7 @@ export function SettingsPage() {
               </select></label>
             <label className="grid gap-1.5"><span className="label">Default review mode</span>
               <select className="field" value={prefs.review_mode} onChange={(e) => savePrefs({ review_mode: e.target.value as Prefs['review_mode'] })}>
-                <option value="insert_and_continue">Insert, then continue</option><option value="review_each">Pause after each question</option><option value="prepare_only">Prepare only, don't insert</option>
+                <option value="auto_submit">Run + auto-submit</option><option value="insert_and_continue">Insert, then continue</option><option value="review_each">Pause after each question</option><option value="prepare_only">Prepare only, don't insert</option>
               </select></label>
             <label className="grid gap-1.5"><span className="label">Default max questions per session</span>
               <input className="field" type="number" min={1} max={200} value={prefs.max_questions} onChange={(e) => savePrefs({ max_questions: Math.max(1, Math.min(200, Number(e.target.value) || 1)) })} /></label>
@@ -45,6 +45,20 @@ export function SettingsPage() {
           <div className="grid gap-2 p-4 text-[13px]">
             <KV k="LLM provider" v={status?.llm.provider ?? '—'} />
             <KV k="Model" v={status?.llm.model ?? '—'} />
+            {status?.llm?.keys && status.llm.keys > 1 && (
+              <KV k="API keys" v={`${status.llm.keys_available ?? 0} of ${status.llm.keys} available (active: ${status.llm.active_label ?? ''})`} />
+            )}
+            {status?.llm?.chain && status.llm.chain.length > 1 && (
+              <div className="space-y-1 border-b hairline pb-2">
+                <span className="text-fg-mute text-[12px]">Key chain</span>
+                {status.llm.chain.map((k, i) => (
+                  <div key={i} className={`flex items-center justify-between text-[12px] ${k.available ? 'text-fg-dim' : 'text-fg-mute line-through'}`}>
+                    <span className="flex items-center gap-1.5"><span className={`h-1.5 w-1.5 rounded-full ${k.available ? 'bg-ok' : 'bg-bad'}`} />{k.label} · {k.provider}</span>
+                    <span className="font-mono">{k.model}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <KV k="Reasoning effort" v={status?.llm.effort ?? '—'} />
             <KV k="Web search" v={status?.search.configured ? status.search.provider : 'Not configured'} />
             <KV k="Code sandbox" v={status?.sandbox.backend ?? '—'} />

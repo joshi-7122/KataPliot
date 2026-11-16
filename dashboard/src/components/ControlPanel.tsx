@@ -86,6 +86,7 @@ export function ControlPanel({ lockedModule }: { lockedModule?: Module }) {
           <label className="grid gap-1.5">
             <span className="label">Review mode</span>
             <select className="field" value={reviewMode} disabled={active} onChange={(e) => setReviewMode(e.target.value as SessionConfig['review_mode'])}>
+              <option value="auto_submit">Run + auto-submit</option>
               <option value="insert_and_continue">Insert, then continue</option>
               <option value="review_each">Pause after each question</option>
               <option value="prepare_only">Prepare only, don't insert</option>
@@ -134,7 +135,7 @@ export function ControlPanel({ lockedModule }: { lockedModule?: Module }) {
               <button className="btn h-9 !border-bad/40 !text-bad hover:!bg-bad/10" onClick={() => ctl('stop')} disabled={state === 'stopping'}><Square size={12} fill="currentColor" />Stop</button>
             </>
           )}
-          <span className="ml-auto text-[11.5px] text-fg-mute">Never clicks Run or Submit</span>
+          <span className="ml-auto text-[11.5px] text-fg-mute">{reviewMode === 'auto_submit' ? 'Runs on GUVI, fixes failing code, and submits when all tests pass' : 'Never clicks Run or Submit'}</span>
         </div>
       </div>
     </Panel>

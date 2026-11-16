@@ -573,13 +573,14 @@
         || null;
   }
 
-  function tableItems(table, max) {
+  function tableItems(table, max, skipSolved = false) {
     const strings = qwikStrings();
     const head = table.tHead ? [...table.tHead.rows[0].cells].map((c) => c.textContent.trim().toLowerCase()) : [];
     let qi = head.findIndex((h) => /question|problem|title/.test(h));
     const base = location.pathname.replace(/\/+$/, "") + "/";
     const numbered = /\/webkata\/[a-z]+\/$/i.test(base);   // WebKata addresses questions by their list number
     const items = [];
+    let eligible = 0;
     for (const row of table.tBodies[0].rows) {
       if (!visible(row) || row.cells.length < 2) continue;
       const cells = [...row.cells];
@@ -601,10 +602,12 @@
         url = location.origin + base + (confirmed ? confirmed.replace(/\//g, "") : slug) + "/";
         guessed = !confirmed;
       }
+      const isSolved = statusFromCell(cells[0]) === "solved";
       items.push({ title, number: num, url, difficulty: diffCell ? diffCell.textContent.trim().toLowerCase() : null,
-                   status: statusFromCell(cells[0]), solvedOnGuvi: statusFromCell(cells[0]) === "solved",
+                   status: statusFromCell(cells[0]), solvedOnGuvi: isSolved,
                    locator: { listUrl: location.href, text: title, guessed, page: currentPage() } });
-      if (items.length >= max) break;
+      if (!skipSolved || !isSolved) eligible++;
+      if (eligible >= max) break;
     }
     return items;
   }
@@ -725,18 +728,19 @@
   /** Collect questions from the list exactly as the user has it filtered, following pagination up to `max`. */
   async function discover(params = {}) {
     const max = params.max || 50;
-    let res = discoverSync(params.module, max);
+    const skipSolved = !!params.skipSolved;
+    const countEligible = (list) => skipSolved ? list.filter((i) => !i.solvedOnGuvi).length : list.length;
+    let res = discoverSync(params.module, max * 3);
     if (res.strategy === "question-table") {
       const seen = new Set(res.items.map((i) => i.title));
-      for (let guard = 0; guard < 40 && res.items.length < max; guard++) {
+      for (let guard = 0; guard < 40 && countEligible(res.items) < max; guard++) {
         const table = questionTable();
         if (!table || !(await gotoNextPage(table))) break;
-        const more = tableItems(questionTable(), max).filter((i) => !seen.has(i.title));
+        const more = tableItems(questionTable(), max * 3, false).filter((i) => !seen.has(i.title));
         if (!more.length) break;
         more.forEach((i) => seen.add(i.title));
         res.items.push(...more);
       }
-      res.items = res.items.slice(0, max);
       return { ...res, listUrl: location.href };
     }
     let stable = 0;
@@ -846,6 +850,23 @@
     if (changed && res.verdict === "failed") res.text = await failingCases(res.text);
     return changed ? res : { ...res, verdict: "unknown", text: "GUVI showed no new result after Run." };
   }
+  function extractDialogText(dialog) {
+    const tables = dialog.querySelectorAll("table");
+    if (tables.length > 0) {
+      const parts = [];
+      tables.forEach((tbl) => {
+        const rows = [...tbl.querySelectorAll("tr")].map((r) =>
+          [...r.querySelectorAll("th, td")].map((c) => c.innerText.trim()).filter(Boolean).join(" | ")
+        ).filter(Boolean);
+        if (rows.length) parts.push(rows.join("\n"));
+      });
+      const headings = [...dialog.querySelectorAll("h1, h2, h3, h4, p, [class*='alert'], [role='alert']")]
+        .filter(visible).map((e) => e.innerText.trim()).filter(Boolean);
+      return [...headings, ...parts].join("\n");
+    }
+    return (dialog.innerText || "").replace(/\n{2,}/g, "\n");
+  }
+
   async function submitCode() {
     dismissOverlays();
     const btn = actionButton(/^submit$/i);
@@ -861,7 +882,7 @@
     }
     await wait;
     await sleep(800);
-    const dlgText = openDialogs().map((d) => d.innerText).join("\n").replace(/\n{2,}/g, "\n").slice(0, 800);
+    const dlgText = openDialogs().map((d) => extractDialogText(d)).join("\n\n").replace(/\n{3,}/g, "\n\n").slice(0, 1200);
     const toasts = [...document.querySelectorAll('[class*="toast" i],[role=alert],[class*="snackbar" i],[class*="notif" i]')]
       .filter(visible).map((t) => t.innerText).join("\n").slice(0, 300);
     const run = readRunResult();

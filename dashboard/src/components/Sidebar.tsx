@@ -52,6 +52,9 @@ export function Sidebar({ view, onView }: { view: View; onView: (v: View) => voi
         <Row ok={backendUp} label="Backend" value={backendUp ? 'Online' : 'Offline'} />
         <Row ok={!!ext} label="Extension" value={ext ? 'Connected' : 'Not connected'} />
         <Row ok={!status?.llm.error && !!status} label="Model" value={status?.llm.model ?? status?.llm.provider ?? '—'} />
+        {status?.llm?.keys && status.llm.keys > 1 && (
+          <Row ok={(status.llm.keys_available ?? 0) > 0} label="Keys" value={`${status.llm.keys_available ?? 0}/${status.llm.keys} available`} />
+        )}
       </div>
     </aside>
   )

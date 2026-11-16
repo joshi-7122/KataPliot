@@ -8,11 +8,12 @@ export type SessionState =
 export interface SessionConfig {
   module: Module
   language: string
-  review_mode: 'prepare_only' | 'insert_and_continue' | 'review_each'
+  review_mode: 'prepare_only' | 'insert_and_continue' | 'review_each' | 'auto_submit'
   discovery: 'listing' | 'current' | 'urls'
   urls: string[]
   max_questions: number
   skip_already_prepared: boolean
+  skip_solved_on_guvi?: boolean
   use_web_search: boolean
 }
 
@@ -26,7 +27,18 @@ export interface AgentSnapshot {
 export interface Status {
   extension: { connected: boolean; info: Record<string, unknown> }
   agent: AgentSnapshot
-  llm: { provider: string; model?: string; effort?: string; error?: string }
+  llm: {
+    provider: string
+    model?: string
+    full_model?: string
+    effort?: string
+    error?: string
+    keys?: number
+    active_key?: number
+    active_label?: string
+    keys_available?: number
+    chain?: { label: string; model: string; provider: string; available: boolean; note?: string }[]
+  }
   search: { provider: string; configured: boolean }
   sandbox: { backend: string }
   stats: { total: number; ready: number; review: number; failed: number; pending: number; inserted: number }

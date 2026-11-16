@@ -158,17 +158,15 @@ SOLUTION_SCHEMA = {
 BASE_SYSTEM = """You are KataPilot, an expert competitive programmer and SQL engineer helping a B.Tech student
 prepare solutions for GUVI practice problems. Think through the problem fully before writing code.
 
-Rules for the code field:
-- Output ONLY the final source code. No markdown fences, no prose, no explanatory comments beyond a minimal few.
+Rules for the code:
+- The code block must contain ONLY the final source code, with at most a few short comments.
 - Respect the exact input/output contract: read from standard input, print exactly what is asked, no prompts like "Enter n:",
   no extra spaces/lines. GUVI compares output strictly (trailing whitespace is usually trimmed).
 - Choose an algorithm that fits the constraints; state time and space complexity honestly.
 - Handle edge cases (empty input, n=0/1, negatives, overflow -> use long long / long, duplicates, large inputs -> fast I/O).
 - Web references are hints, not truth. Never copy a reference whose I/O contract differs from the original problem.
 - If the problem statement is ambiguous, follow the sample I/O exactly and mention the ambiguity in `understanding`.
-- extra_tests must be tests whose expected output you are certain about; leave the list empty if unsure.
-- Spend your words on the code. Keep every other field brief: understanding, approach and algorithm_explanation
-  at most 2 sentences each, at most 3 edge_cases, at most 2 extra_tests."""
+- Spend your words on the code; keep the explanation to one or two sentences."""
 
 MODULE_RULES = {
     "codekata": "Write a complete program in {lang}. For C++ use modern C++17, #include <bits/stdc++.h> is fine, "
@@ -212,8 +210,7 @@ async def generate_solution(q: Question, refs: list[Reference], llm: LLMProvider
     else:
         user += "\n\nNo equivalent reference was found online; solve independently."
     user += f"\n\nRequired language: {lang_label}."
-    data = await generate_with_retry(llm, system, user, SOLUTION_SCHEMA)
-    return _to_draft(data, language), data.get("extra_tests", [])
+    return await _ask(llm, system, user, language)
 
 
 async def repair_solution(q: Question, draft: SolutionDraft, report: ValidationReport, llm: LLMProvider) -> tuple[SolutionDraft, list[dict]]:
@@ -226,8 +223,76 @@ async def repair_solution(q: Question, draft: SolutionDraft, report: ValidationR
     checks = "\n".join(f"- [{c.status}] {c.name}: {c.detail[:1500]}" for c in report.checks)
     user = (f"{question_brief(q)}\n\nPREVIOUS CODE:\n{draft.code}\n\nVALIDATION RESULTS:\n{checks}\n\n"
             f"Return a newly written, correct solution in {lang_label}.")
-    data = await generate_with_retry(llm, system, user, SOLUTION_SCHEMA)
-    return _to_draft(data, draft.language), data.get("extra_tests", [])
+    return await _ask(llm, system, user, draft.language)
+
+
+# The model answers in plain text with the program in a fenced block. Asking for code inside a JSON string made
+# weaker models squash whole programs onto one line or corrupt them while escaping.
+ANSWER_FORMAT = """
+
+ANSWER FORMAT - follow it exactly, nothing else:
+APPROACH: <one or two sentences>
+TIME: <time complexity>
+SPACE: <space complexity>
+```{fence}
+<the complete program, normally formatted: one statement per line, proper indentation>
+```{sql_extra}"""
+SQL_EXTRA = """
+SQLITE:
+```sql
+<the same statements in SQLite syntax; repeat the block above if it is already portable>
+```"""
+FENCE = {"cpp": "cpp", "c": "c", "java": "java", "python": "python", "sql": "sql", "html": "html", "css": "css", "javascript": "javascript"}
+
+
+def answer_format(language: str) -> str:
+    return ANSWER_FORMAT.format(fence=FENCE.get(language, ""), sql_extra=SQL_EXTRA if language == "sql" else "")
+
+
+def parse_answer(text: str, language: str) -> SolutionDraft:
+    """Turn the plain-text answer into a SolutionDraft; reject code that is obviously mangled."""
+    from .llm import LLMError
+
+    blocks = re.findall(r"```[ \t]*[\w+#-]*[ \t]*\r?\n(.*?)```", text, re.S)
+    if not blocks:
+        # no fence at all: accept only if the whole answer after the header lines looks like code
+        body = re.sub(r"^(APPROACH|TIME|SPACE)\s*:.*$", "", text, flags=re.M | re.I).strip()
+        if not body or "\n" not in body:
+            raise LLMError("The model did not return a code block.", retryable=True)
+        blocks = [body]
+    code = blocks[0].replace("\r\n", "\n").strip("\n")
+    code = re.sub(r"\n[.`\s]*$", "", code)                       # stray trailing punctuation
+    if language in ("cpp", "c", "java", "python") and len(code) > 200 and code.count("\n") < 4:
+        raise LLMError("The model returned the program squashed onto one line.", retryable=True)
+    if not code.strip():
+        raise LLMError("The model returned empty code.", retryable=True)
+
+    def field(name: str) -> str:
+        m = re.search(rf"^\s*\**{name}\**\s*:\s*(.+)$", text, re.M | re.I)
+        return m.group(1).strip() if m else ""
+
+    approach = field("APPROACH") or "See code."
+    return SolutionDraft(understanding="", approach=approach, algorithm_explanation=approach,
+                         time_complexity=field("TIME") or "-", space_complexity=field("SPACE") or "-", edge_cases=[],
+                         language=language, code=code + "\n",
+                         sqlite_validation_query=(blocks[1].strip() if language == "sql" and len(blocks) > 1 else None))
+
+
+async def _ask(llm: LLMProvider, system: str, user: str, language: str) -> tuple[SolutionDraft, list[dict]]:
+    from .llm import LLMError
+
+    last: Exception | None = None
+    for attempt in range(3):
+        nudge = "" if attempt == 0 else ("\n\nYour previous answer could not be used (" + str(last) + "). Follow the ANSWER FORMAT exactly "
+                                         "and write the program across many lines inside the fenced block.")
+        data = await generate_with_retry(llm, system + answer_format(language), user + nudge, None)
+        if "text" not in data:                      # provider that already returns structured fields
+            return _to_draft(data, language), data.get("extra_tests", [])
+        try:
+            return parse_answer(data["text"], language), []
+        except LLMError as e:
+            last = e
+    raise LLMError(f"The model kept returning unusable code: {last}")
 
 
 def _to_draft(data: dict, language: str) -> SolutionDraft:

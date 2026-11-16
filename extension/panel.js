@@ -156,11 +156,15 @@ $("refresh").onclick = refreshPage;
 $("start").onclick = () => act(async () => {
   await refreshPage();   // the tab may have moved since the panel last looked
   if (!["listing", "question"].includes(refreshPage.type)) throw new Error("Open a GUVI question list (or a question) in the active tab first.");
+  const count = Math.max(1, Math.min(200, +$("max").value || 10));
+  // If the user wants more than 1 question but the tab is on a single question, use listing discovery
+  // so the agent navigates to the list and collects multiple questions.
+  const disc = (refreshPage.type === "question" && count <= 1) ? "current" : "listing";
   questions = []; open.clear(); details.clear();
   await api("/api/session/start", "POST", {
     module: $("module").value, language: $("language").value, review_mode: $("mode").value,
-    discovery: refreshPage.type === "question" ? "current" : "listing",
-    max_questions: Math.max(1, Math.min(200, +$("max").value || 10)), urls: [],
+    discovery: disc,
+    max_questions: count, urls: [],
     skip_already_prepared: true, skip_solved_on_guvi: $("skipsolved").checked, use_web_search: prefs ? prefs.use_web_search : true,
   });
 });

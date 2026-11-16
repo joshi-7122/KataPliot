@@ -201,13 +201,28 @@ class Agent:
         items: list[dict] = []
         if cfg.discovery == "urls":
             items = [{"url": u.strip(), "title": u.strip()} for u in cfg.urls if u.strip().startswith("https://")]
-        elif cfg.discovery == "current":
+        elif cfg.discovery == "current" and cfg.max_questions <= 1:
             if page.get("pageType") != "question":
                 raise RuntimeError("The current GUVI tab is not showing a question. Open a question or use listing discovery.")
             items = [{"url": page["url"], "title": page.get("title") or "Current question"}]
         else:
+            # listing mode — or current mode with max_questions > 1 (fall back to listing so we get multiple questions)
+            if cfg.discovery == "current" and cfg.max_questions > 1:
+                await self._log("info", f"You asked for {cfg.max_questions} questions but the tab shows a single question. "
+                                        "Switching to list discovery to find more questions.", "discover")
+            
+            # If the current page is a question page, navigate back to the module listing
+            if page.get("pageType") == "question":
+                from urllib.parse import urlparse, urlunparse
+                p = urlparse(page.get("url") or "")
+                mod_path = {"codekata": "code-kata", "sqlkata": "sql-kata", "webkata": "webkata", "fixthecode": "fixthecode"}.get(cfg.module, "code-kata")
+                list_url = urlunparse((p.scheme, p.netloc, f"/{mod_path}/", "", p.query, ""))
+                await self._activity(f"Navigating to question list: {list_url}", "discover")
+                await self._call("tab.navigate", {"url": list_url}, timeout=45)
+                page = await self._call("page.waitReady", {"module": cfg.module, "timeoutMs": 25000, "dismissOverlays": True}, timeout=40)
+
             await self.hub.emit("activity", question_id=None, step="discover", message="Discovering questions on this page")
-            res = await self._call("page.discover", {"module": cfg.module, "max": cfg.max_questions}, timeout=60)
+            res = await self._call("page.discover", {"module": cfg.module, "max": cfg.max_questions, "skipSolved": cfg.skip_solved_on_guvi}, timeout=60)
             items = res.get("items", [])
             if not items and page.get("pageType") == "question":
                 items = [{"url": page["url"], "title": page.get("title") or "Current question"}]
@@ -426,7 +441,7 @@ class Agent:
             await self._log("info", "Auto-submit is not used for multi-part SQL problems yet; the queries are inserted for you to run.", "submit")
             return None
         try:
-            limit = max(1, self.s.max_guvi_fix_attempts)
+            limit = max(1, min(self.s.max_guvi_fix_attempts, 4))
             history: list[str] = []
             fixes = 0
             while True:
@@ -448,8 +463,7 @@ class Agent:
                     # Not confirmed as accepted: GUVI's hidden test cases rejected it. Keep fixing.
                     stage = "Submit (hidden test cases)"
                     detail = ("The code passed the visible sample cases but GUVI REJECTED the submission on its hidden test cases. "
-                              "Think about edge cases: empty input, single element, duplicates, value at the head/tail, negative "
-                              "numbers, large values, exact output wording and spacing.\n" + (sub.get("text") or ""))[:1800]
+                              "Analyze the test inputs and outputs carefully, rethink edge cases, and change the logic rather than re-submitting similar code:\n" + (sub.get("text") or ""))[:1800]
                 if fixes >= limit:
                     return QStatus.needs_review, f"Needs review - GUVI still rejects it after {limit} rewrites ({stage})"
                 fixes += 1
@@ -461,13 +475,20 @@ class Agent:
                     checks.append(CheckResult(name="Earlier failed attempts - do NOT repeat these; rethink the I/O format and logic",
                                               status="fail", detail="\n\n".join(history[:-1])[-3500:]))
                 report = ValidationReport(verdict="failed", sandbox="guvi", checks=checks)
+                prev_code = draft.code
                 draft, _ = await repair_solution(q, draft, report, self.llm)
+                if draft.code.strip() == prev_code.strip():
+                    await self._log("warn", "AI returned identical code; re-prompting with stronger requirement for logic changes.", "repair")
+                    report.checks.append(CheckResult(name="CRITICAL: Code was unchanged", status="fail",
+                                                    detail="Your previous repair produced the EXACT SAME code. You must change the logic or I/O handling."))
+                    draft, _ = await repair_solution(q, draft, report, self.llm)
                 await self.db.add_solution(qid, fixes + 1, draft.language, draft.code,
                                            draft.model_dump(exclude={"code"}) | {"extra_tests": [], "parts": []}, [], report.model_dump())
                 await self.hub.emit("solution", question_id=qid)
                 if not await self._write(qid, q.url, draft.code, "before_fix_insert"):
                     return QStatus.needs_review, "Needs review - could not re-insert the rewritten code"
                 self._last_inserted = (qid, draft.code)
+                await asyncio.sleep(1.0)
         except BridgeError as e:
             await self._log("warn", f"Auto-submit stopped: {e}", "submit")
             return QStatus.needs_review, f"Needs review - inserted, but not submitted ({e})"

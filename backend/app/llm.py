@@ -73,8 +73,7 @@ class AnthropicProvider(LLMProvider):
                 system=system,
                 messages=[{"role": "user", "content": user}],
                 thinking={"type": "adaptive"},
-                output_config={"effort": effort or self.effort,
-                               "format": {"type": "json_schema", "schema": schema}},
+                output_config={"effort": effort or self.effort} | ({"format": {"type": "json_schema", "schema": schema}} if schema else {}),
                 betas=["server-side-fallback-2026-07-01"],
                 fallbacks="default",
             ) as stream:
@@ -99,6 +98,8 @@ class AnthropicProvider(LLMProvider):
         if msg.stop_reason == "max_tokens":
             raise LLMError("The model ran out of output tokens; raise LLM_MAX_TOKENS.", retryable=False)
         text = next((b.text for b in msg.content if b.type == "text"), "")
+        if schema is None:
+            return {"text": text}
         try:
             return json.loads(text)
         except json.JSONDecodeError as e:
@@ -136,13 +137,30 @@ class OpenAICompatibleProvider(LLMProvider):
                 raise LLMError("OPENAI_API_KEY (or OPENAI_API_KEYS) is required for the openai_compatible provider.")
         self.active = 0
 
+    @staticmethod
+    def _friendly_provider(base_url: str) -> str:
+        """Derive a human-readable provider name from the API base URL."""
+        host = base_url.split("//")[-1].split("/")[0].split(":")[0].lower()
+        NAMES = {"openrouter.ai": "OpenRouter", "api.openai.com": "OpenAI",
+                 "generativelanguage.googleapis.com": "Gemini", "integrate.api.nvidia.com": "NVIDIA",
+                 "api.groq.com": "Groq", "api.together.xyz": "Together", "api.fireworks.ai": "Fireworks"}
+        return NAMES.get(host, host.split(".")[0].capitalize() if "localhost" not in host and "127.0.0.1" not in host else "Local")
+
+    @staticmethod
+    def _friendly_model(model: str) -> str:
+        """Strip vendor prefixes like 'openai/' from model names for display."""
+        return model.split("/", 1)[-1] if "/" in model else model
+
     def describe(self):
         now = time.time()
         p = self.profiles[self.active]
-        return {"provider": self.name, "model": p["model"], "base_url": p["base"], "keys": len(self.profiles),
+        return {"provider": self._friendly_provider(p["base"]), "model": self._friendly_model(p["model"]),
+                "full_model": p["model"], "base_url": p["base"], "keys": len(self.profiles),
                 "active_key": self.active + 1, "active_label": p["label"],
                 "keys_available": sum(1 for x in self.profiles if x["blocked_until"] <= now),
-                "chain": [{"label": x["label"], "model": x["model"], "available": x["blocked_until"] <= now, "note": x["why"]}
+                "chain": [{"label": x["label"], "model": self._friendly_model(x["model"]),
+                           "provider": self._friendly_provider(x["base"]),
+                           "available": x["blocked_until"] <= now, "note": x["why"]}
                           for x in self.profiles]}
 
     def _pick(self) -> dict | None:
@@ -179,7 +197,9 @@ class OpenAICompatibleProvider(LLMProvider):
                                f"Add another key to OPENAI_API_KEYS in backend/.env, or wait about {mins} min.")
             body = {"model": p["model"], p["tok"]: max_tokens,
                     "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
-            if p["mode"] == 2:
+            if schema is None:
+                pass                                   # plain-text answer (code in a fenced block)
+            elif p["mode"] == 2:
                 body["response_format"] = {"type": "json_schema", "json_schema": {"name": "result", "schema": schema, "strict": True}}
             else:
                 if p["mode"] == 1:
@@ -195,7 +215,7 @@ class OpenAICompatibleProvider(LLMProvider):
             if r.status_code == 400 and p["tok"] == "max_tokens" and "max_completion_tokens" in low:
                 p["tok"] = "max_completion_tokens"      # newer OpenAI models renamed the output-limit parameter
                 continue
-            if r.status_code in (400, 422) and p["mode"] > 0 and not re.search(r"credit|quota|billing|balance|api key", low):
+            if r.status_code in (400, 422) and schema is not None and p["mode"] > 0 and not re.search(r"credit|quota|billing|balance|api key", low):
                 p["mode"] -= 1                 # provider lacks this JSON mode: step down (schema -> JSON object -> prompt only)
                 continue
             if r.status_code in (404, 410):
@@ -230,6 +250,10 @@ class OpenAICompatibleProvider(LLMProvider):
                 continue
             content = (choice["message"].get("content") or "").strip()
             content = re.sub(r"<think>.*?</think>", "", content, flags=re.S).strip()   # reasoning models
+            if schema is None:
+                if not content:
+                    raise LLMError("The model returned an empty answer.", retryable=True)
+                return {"text": content}
             m = re.search(r"```(?:json)?\s*(\{.*\})\s*```", content, re.S)
             if m:
                 content = m.group(1)
@@ -252,7 +276,7 @@ def make_llm(s: Settings) -> LLMProvider:
     return AnthropicProvider(s)
 
 
-async def generate_with_retry(llm: LLMProvider, system: str, user: str, schema: dict, *, attempts: int = 3, effort: str | None = None) -> dict:
+async def generate_with_retry(llm: LLMProvider, system: str, user: str, schema: dict | None, *, attempts: int = 3, effort: str | None = None) -> dict:
     delay = 4.0
     for i in range(attempts):
         try:
