@@ -1,0 +1,37 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>HCL GUVI | Learn to code in your native language</title>
+<style>body{font-family:sans-serif;margin:0;display:flex;height:100vh}.left{width:35%;padding:16px;overflow:auto}.right{flex:1;display:flex;flex-direction:column;padding:16px}#editor{flex:1;min-height:360px}
+.collapse{border:1px solid #ccc;margin:6px 0;position:relative}.collapse-title{cursor:pointer;padding:8px}.collapse-content{visibility:hidden;height:0;overflow:hidden;padding:0 8px}.collapse.open .collapse-content{visibility:visible;height:auto}</style></head>
+<body>
+ <div class="left sql-kata-problem"><h1>SQLKata</h1>
+  <div class="sql-kata-question-desc"><div class="question-container px-4 pt-5">
+    <div class="flex items-start mb-4"><p>1. The Neighborhood Pet Registry</p><span>50</span></div>
+    <div class="question-status"><span>Medium</span></div>
+    <div class="text-sm"><div class="whitespace-pre-line questionsMarked mb-6"><p>In a small, pet-loving community, the local council decided to create a digital pet registry. The registry contains information about each pet, including their name, species, age, and owner.</p> </div>
+      <div id="parts"></div></div>
+  </div></div>
+ </div>
+ <div class="right sql-kata-editor">
+  <div><span>Code Editor</span> | <span id="hdr">Question 1</span></div>
+  <div id="editor" class="grow"></div>
+  <div><button id="run">Run Code</button><button id="submit">Submit</button><span id="clicked"></span></div>
+  <div style="display:none" class="flex w-full grow"><div class="tables-container"><h3>Database Tables</h3><div class="space-y-6"><div class="p-4"><h4><span>Table Name: </span>pets</h4><div class="sql-table-content"><figure class="table"><table><tbody><tr><td>id</td><td>name</td><td>species</td><td>age</td><td>owner</td></tr><tr><td>1</td><td>Fluffy</td><td>Cat</td><td>3</td><td>Alice</td></tr><tr><td>2</td><td>Buddy</td><td>Dog</td><td>5</td><td>Bob</td></tr><tr><td>3</td><td>Tweety</td><td>Bird</td><td>1</td><td>Charlie</td></tr></tbody></table></figure></div></div></div></div></div>
+  <div style="display:none" id="split-3-container"><div class="tables-container"><h3>Database Tables</h3><div><div><h4><span>Table Name: </span>pets</h4><figure class="table"><table><tbody><tr><td>id</td><td>name</td><td>species</td><td>age</td><td>owner</td></tr><tr><td>1</td><td>Fluffy</td><td>Cat</td><td>3</td><td>Alice</td></tr></tbody></table></figure></div></div></div></div>
+ </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ace.min.js"></script>
+<script>
+  document.getElementById('run').onclick = () => document.getElementById('clicked').textContent += 'RUN ';
+  document.getElementById('submit').onclick = () => document.getElementById('clicked').textContent += 'SUBMIT ';
+  const Q = ["The council wants to know how many pets are currently registered. Can you help them get this information?",
+             "Alice is worried she might have given the wrong age for her cat, Fluffy. Can you help her check Fluffy's current age in the registry?",
+             "Bob realizes he made a mistake. His dog Buddy is actually 6 years old, not 5. Can you help update this information in the registry and then display Buddy's information?"];
+  const ed = ace.edit('editor'); ed.session.setMode('ace/mode/sql'); window.buffers = Q.map(() => ''); let cur = 0;
+  ed.on('change', () => { window.buffers[cur] = ed.getValue(); });
+  const parts = document.getElementById('parts');
+  Q.forEach((t, i) => { const d = document.createElement('div'); d.className = 'collapse border' + (i === 0 ? ' open' : '');
+    d.innerHTML = `<input type="radio" name="acc" style="position:absolute;opacity:0"><div class="collapse-title cursor-pointer"><div class="flex-1"><p>Question ${i+1}</p></div></div><div class="collapse-content"><p>${t}</p></div>`;
+    d.querySelector('.collapse-title').onclick = () => setTimeout(() => { document.querySelectorAll('.collapse').forEach(c => c.classList.remove('open')); d.classList.add('open'); cur = i; ed.setValue(window.buffers[i], -1); document.getElementById('hdr').textContent = 'Question ' + (i+1); }, 200);
+    parts.appendChild(d); });
+  window.fixtureReady = true;
+</script>
+</body></html>

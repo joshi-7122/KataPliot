@@ -1,0 +1,42 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>KataPilot</title><link rel="stylesheet" href="panel.css"></head>
+<body>
+<header><div class="logo">›_</div><div><b>KataPilot</b><small id="sub">GUVI practice agent</small></div>
+  <span class="dots"><i id="d-back" title="Backend"></i><i id="d-tab" title="GUVI tab"></i></span></header>
+
+<section id="offline" class="card warn hide">
+  <b>KataPilot engine is not running</b>
+  <p>Double-click <code>KataPilot.command</code> in the katapilot folder (or run <code>./run.sh</code>). This panel reconnects by itself.</p>
+</section>
+<section id="llmerr" class="card bad hide"></section>
+
+<section class="card" id="pagecard">
+  <div class="row"><span class="label">Open GUVI page</span><button id="refresh" class="ghost">Refresh</button></div>
+  <div id="page">Checking…</div>
+</section>
+
+<section class="card" id="setup">
+  <div class="grid">
+    <label>Module<select id="module"><option value="codekata">CodeKata</option><option value="sqlkata">SQLKata</option><option value="webkata">WebKata</option><option value="fixthecode">Debugging</option></select></label>
+    <label>Language<select id="language"></select></label>
+    <label>How many<input id="max" type="number" min="1" max="200" value="10"></label>
+    <label>After each<select id="mode"><option value="auto_submit">Run + auto-submit</option><option value="insert_and_continue">Insert, continue</option><option value="review_each">Pause for review</option><option value="prepare_only">Don't insert</option></select></label>
+  </div>
+  <label class="check"><input type="checkbox" id="skipsolved" checked> Skip questions GUVI marks as solved</label>
+  <button id="start" class="primary">▶ Start</button>
+  <p class="hint" id="hint"></p>
+</section>
+
+<section class="card hide" id="running">
+  <div class="row"><b id="state">Running</b><span id="count"></span></div>
+  <div class="bar"><div id="fill"></div></div>
+  <div id="activity">…</div>
+  <div id="serr" class="err"></div>
+  <div class="btns"><button id="pause">Pause</button><button id="resume" class="primary hide">Resume</button><button id="skip">Skip</button><button id="stop" class="danger">Stop</button></div>
+</section>
+
+<section id="queue"></section>
+<footer><a id="dash" target="_blank">Open full dashboard ↗</a></footer>
+<div id="toast" class="hide"></div>
+<script src="panel.js"></script>
+</body></html>

@@ -1,0 +1,45 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>HCL GUVI | Learn to code in your native language</title>
+<style>body{font-family:sans-serif;margin:0;display:flex;height:100vh}.left{width:35%;padding:16px;overflow:auto}.right{flex:1;display:flex;flex-direction:column;padding:16px}#editor{flex:1;min-height:400px}dialog{padding:24px}</style></head>
+<body>
+<div class="code-kata w-screen h-screen" style="display:flex;width:100%">
+ <div class="left code-kata-problem"><h1 class="text-xl">CodeKata</h1>
+  <div class="code-kata-question-desc flex flex-col"><div class="question-container px-4 pt-5">
+    <div class="flex items-start mb-4"><p class="text-base">1. Odd or Even Sum</p><span>30</span></div>
+    <div class="question-status flex items-center"><div><span class="px-2 border">Easy</span></div><button>Topics</button></div>
+    <div class="text-sm"><div class="whitespace-pre-line questionsMarked"><p><strong>Problem Statement:</strong><br>Given 2 numbers N and M add both the numbers and check whether the sum is odd or even.</p> <p><strong>Input Description:</strong><br>The input <strong>consists</strong> of two integers, N and M.</p> <p><strong>Output Description:</strong><br>The output is 'odd' if the sum of N and M is odd, and 'even' if the sum is even.</p> <p><strong>Sample Input:</strong><br>9 2</p> <p><strong>Sample Output:</strong><br>odd</p> </div></div>
+  </div><div>Accepted 27k Submissions 37k</div></div>
+ </div>
+ <div class="right code-kata-editor">
+  <div>Code Editor <select id="editorModeSelectDesktop" style="display:none" tabindex="-1" aria-hidden="true">
+     <option>PYTHON 3</option><option>JAVASCRIPT</option><option>C</option><option>JAVA 8</option><option>C++</option><option>JAVA</option><option>C#</option><option>CLANG C</option><option>SQLITE</option></select>
+     <span id="ss-label">PYTHON 3</span></div>
+  <div id="editor" class="grow"></div>
+  <div id="code-kata-console"><div class="code-kata-console"><button>Test Case</button><button class="active-console">Test Result</button><div id="res"></div></div></div>
+  <div><button id="run" class="run-code">Run Code</button><button id="submit">Submit</button><span id="clicked"></span></div>
+ </div>
+</div>
+<dialog id="reset_language_modal" class="modal change-language-modal"><p class="heading">Keep the Code Changes?</p><button id="no">No</button><button id="yes">Yes</button></dialog>
+<dialog id="confirm"><p>Are you sure you want to submit?</p><button onclick="this.closest('dialog').close()">Cancel</button><button id="really">Submit</button></dialog>
+<dialog id="result"><p>Congratulations! All test cases passed.</p><button>View Submissions</button><button>Next Question</button></dialog>
+<dialog id="feedback"><textarea id="feedback-description" style="width:400px;height:200px"></textarea></dialog>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ace.min.js"></script>
+<script>
+  // Mimics GUVI: Run shows Correct/Wrong with per-case dots after a delay; Submit asks to confirm, then shows a result dialog.
+  const good = () => /% ?2/.test(window.ace.edit('editor').getValue());
+  document.getElementById('run').onclick = () => { document.getElementById('clicked').textContent += 'RUN '; setTimeout(() => { const ok = good();
+    document.getElementById('res').innerHTML = `<span class="${ok ? 'test-pass' : 'test-fail'} font-bold">${ok ? 'Correct' : 'Wrong'}</span><button>Case 1<span class="case-pill-dot-${ok ? 'pass' : 'fail'}"></span></button><button>Case 2<span class="case-pill-dot-pass"></span></button><div>Output</div><div>${ok ? 'odd' : 'even'}</div>`; }, 900); };
+  document.getElementById('submit').onclick = () => document.getElementById('confirm').showModal();
+  const MODES = {'PYTHON 3':'python','JAVASCRIPT':'javascript','C':'c_cpp','JAVA 8':'java','C++':'c_cpp','JAVA':'java','C#':'csharp','CLANG C':'c_cpp','SQLITE':'sql'};
+  const TPL = {'PYTHON 3':'print("Hello World")\n','C++':'#include <iostream>\nint main() { return 0; }\n','JAVA':'class Main {}\n'};
+  const ed = ace.edit('editor'); const sel = document.getElementById('editorModeSelectDesktop'); const dlg = document.getElementById('reset_language_modal');
+  let lang = 'PYTHON 3', dirty = false, pending = null; window.dialogShown = 0;
+  ed.setValue(TPL[lang], -1); ed.session.setMode('ace/mode/python'); ed.on('change', () => { dirty = true; }); dirty = false;
+  function apply(l) { lang = l; ed.session.setMode('ace/mode/' + MODES[l]); ed.setValue(TPL[l] || '// template\n', -1); dirty = false; document.getElementById('ss-label').textContent = l; }
+  sel.addEventListener('change', () => { if (dirty) { pending = sel.value; window.dialogShown++; dlg.showModal(); } else apply(sel.value); });
+  document.getElementById('no').onclick = () => { dlg.close(); apply(pending); };
+  document.getElementById('yes').onclick = () => { dlg.close(); const keep = ed.getValue(); apply(pending); ed.setValue(keep, -1); };
+  document.getElementById('really').onclick = () => { document.getElementById('confirm').close(); document.getElementById('clicked').textContent += 'SUBMIT '; setTimeout(() => document.getElementById('result').showModal(), 800); };
+  window.fixtureReady = true;
+</script>
+</body></html>

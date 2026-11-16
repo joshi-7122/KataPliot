@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "KataPilot AI",
+  "version": "2.3.0",
+  "description": "Prepares solutions for the GUVI questions you have filtered, in your own signed-in tab. Runs and submits only when you turn auto-submit on.",
+  "minimum_chrome_version": "116",
+  "permissions": ["tabs", "scripting", "storage", "alarms", "sidePanel"],
+  "host_permissions": ["https://*.guvi.in/*", "http://127.0.0.1:8765/*", "http://localhost:8765/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_title": "Open KataPilot" },
+  "side_panel": { "default_path": "panel.html" },
+  "icons": { "128": "icon128.png" }
+}

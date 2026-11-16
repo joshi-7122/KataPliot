@@ -1,0 +1,36 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>HCL GUVI | Learn to code in your native language</title>
+<style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse}td,th{padding:10px;text-align:left}tr.cursor-pointer{cursor:pointer}.pagination-container{display:flex;gap:6px;margin-top:12px}</style></head>
+<body>
+<nav><a href="/code-kata/">CodeKata</a> <a href="/webkata/">WebKata</a> <a href="/sqlkata/">SQLKata</a> <a href="/debugging/">Debugging</a></nav>
+<h1>CodeKata</h1>
+<div class="questions-table-container"><div class="table-boundry">
+<table class="⭐️7r6n6o-0 questions-table w-full">
+  <thead class="table-header"><tr><th q:key="status">Status</th><th q:key="question">Question</th><th>Acceptance</th><th>Difficulty</th><th>Geekoins</th></tr></thead>
+  <tbody id="tb"></tbody>
+</table></div>
+<div class="flex pagination-container"><button class="prev" id="prev"></button><span id="pages"></span><button class="next" id="next"></button></div></div>
+<script type="qwik/json">{"refs":{},"ctx":{},"objs":[2182,1,146,"Odd or Even Sum",0.3,"FDP  Hindustan C ProgrammingUnit-2","/odd-or-even-sum/","start",73.97,"Prime Number Check","mathematics",2,"/prime-number-check/",77.37,"Check Divisibility by 7",0.1,"basics",3,"/check-divisibility-by-7/",90.48],"subs":[]}</script>
+<script>
+  const GREY = '<svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="#DADADA"></circle><path fill="#919191" d="M2.5 5h7v2h-7z"></path></svg>';
+  const GREEN = '<svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="#22C55E"></circle><path fill="#FFFFFF" d="M3 6l2 2 4-4"></path></svg>';
+  const DATA = [["Odd or Even Sum","Easy",0],["Prime Number Check","Easy",1],["Check Divisibility by 7","Easy",0],
+                ["Next Greater Power of 2","Medium",0],["Palindrome","Hard",0],["TechCorp's Employee Count","Easy",0],["Rotate Array","Medium",0]];
+  let page = 1; const PER = 3; window.clickedRow = null;
+  function render() {
+    const tb = document.getElementById('tb'); tb.innerHTML = '';
+    DATA.slice((page-1)*PER, page*PER).forEach((d, i) => {
+      const tr = document.createElement('tr'); tr.className = '⭐️7r6n6o-0 cursor-pointer';
+      const n = (page-1)*PER + i + 1;
+      tr.innerHTML = `<td q:key="status">${d[2] ? GREEN : GREY}</td><td q:key="question" class="question-cell"><div><div class="truncate">${n}. ${d[0]}</div></div></td><td>70%</td><td><span>${d[1]}</span></td><td>30</td>`;
+      tr.onclick = () => { window.clickedRow = d[0]; };
+      tb.appendChild(tr);
+    });
+    const last = Math.ceil(DATA.length / PER);
+    document.getElementById('pages').innerHTML = Array.from({length: last}, (_, i) => `<button class="page-no ${i+1===page?'active-page-no':''}">${i+1}</button>`).join('');
+    document.getElementById('next').disabled = page >= last; document.getElementById('prev').disabled = page <= 1;
+  }
+  document.getElementById('next').onclick = () => setTimeout(() => { page++; render(); }, 300);   // async like the real list
+  render();
+</script>
+</body></html>

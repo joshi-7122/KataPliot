@@ -1,0 +1,61 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Fixture question | GUVI</title>
+<style>body{font-family:sans-serif;margin:0;display:flex;height:100vh}nav{position:fixed;top:0;left:0;right:0;height:40px;background:#222;color:#fff}
+.left{width:45%;padding:60px 20px 20px;overflow:auto}.right{flex:1;padding:60px 20px 20px;display:flex;flex-direction:column}
+#ed{flex:1;min-height:420px;border:1px solid #ccc}textarea#ed{font-family:monospace}</style></head>
+<body>
+<nav><a href="/test/listing.html">Home</a> <a href="/profile">Profile</a></nav>
+<div class="left">
+  <div class="prob-wrap">
+    <h3 class="q-name">Sum of Even Numbers</h3><span class="badge">Easy</span>
+    <div class="desc">
+      <p>You are given a number N followed by N integers. Print the sum of all even numbers among them.</p>
+      <p>Input Description:<br>First line contains N. Second line contains N space separated integers.</p>
+      <p>Output Description:<br>Print a single integer, the sum of even values.</p>
+      <p>Constraints:<br>1 &lt;= N &lt;= 100000</p>
+      <p>Sample Input :<br>5<br>1 2 3 4 5</p>
+      <p>Sample Output :<br>6</p>
+    </div>
+  </div>
+</div>
+<div class="right">
+  <div><select id="lang"><option>C</option><option selected>C++</option><option>Java</option><option>Python 3</option></select>
+  <button id="run">Run</button><button id="submit">Submit</button><span id="clicked"></span></div>
+  <div id="host" style="flex:1;display:flex;flex-direction:column"></div>
+</div>
+<script>
+  // If the agent ever clicked these, the fixture would record it.
+  document.getElementById('run').onclick = () => document.getElementById('clicked').textContent += 'RUN ';
+  document.getElementById('submit').onclick = () => document.getElementById('clicked').textContent += 'SUBMIT ';
+  const kind = new URLSearchParams(location.search).get('editor') || 'monaco';
+  const host = document.getElementById('host');
+  const STARTER = '// write your code here\n';
+  const load = (src) => new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
+  const css = (href) => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
+  (async () => {
+    if (kind === 'monaco') {
+      host.innerHTML = '<div id="ed"></div>';
+      await load('https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js');
+      require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
+      require(['vs/editor/editor.main'], () => { window.fixtureEditor = monaco.editor.create(document.getElementById('ed'), { value: STARTER, language: 'cpp' }); window.fixtureReady = true; });
+    } else if (kind === 'ace') {
+      host.innerHTML = '<div id="ed"></div>';
+      await load('https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ace.min.js');
+      const e = ace.edit('ed'); e.setValue(STARTER, -1); window.fixtureReady = true;
+    } else if (kind === 'cm5') {
+      host.innerHTML = '<textarea id="src"></textarea>';
+      css('https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css');
+      await load('https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js');
+      const cm = CodeMirror.fromTextArea(document.getElementById('src'), { lineNumbers: true }); cm.setValue(STARTER); cm.setSize('100%', 420); window.fixtureReady = true;
+    } else if (kind === 'cm6') {
+      host.innerHTML = '<div id="ed"></div>';
+      const { EditorView, basicSetup } = await import('https://esm.sh/codemirror@6.0.1');
+      new EditorView({ doc: STARTER, extensions: [basicSetup], parent: document.getElementById('ed') }); window.fixtureReady = true;
+    } else {
+      host.innerHTML = '<textarea id="ed"></textarea>';
+      const t = document.getElementById('ed'); t.value = STARTER;
+      t.addEventListener('input', () => { window.sawInput = true; }); window.fixtureReady = true;
+    }
+  })();
+</script>
+</body></html>

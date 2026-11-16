@@ -1,0 +1,33 @@
+# Dependencies & environments
+node_modules/
+.venv/
+venv/
+env/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Python cache & test artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Local configuration & secrets (NEVER commit secrets)
+.env
+.env.local
+*.local
+
+# KataPilot runtime data & logs
+data/
+backend/data/
+*.log
+api_token
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
